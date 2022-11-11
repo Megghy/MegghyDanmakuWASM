@@ -1,0 +1,248 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+<PageTitle>@Info.Config.SiteName | @Info.Config.SiteName_Short</PageTitle>
+
+<Space Direction="DirectionVHType.Vertical">
+    <Split>
+        <Divider/>
+    </Split>
+    <ChildContent>
+        <SpaceItem>
+            <p>
+            </p>
+        </SpaceItem>
+        <SpaceItem>
+            <Search DebounceMilliseconds="600" Placeholder="查弹幕记录 输入要查询的用户的UID" Size="large" AllowClear @bind-Value="@_searchUidString" OnSearch="@SearchUser" EnterButton="@("👁 查!")" />
+            <Divider />
+            <Space Wrap Direction="DirectionVHType.Horizontal">
+                <SpaceItem>
+                    <Icon Type="clock-circle" Theme="outline" /> 历史
+                </SpaceItem>
+                <SpaceItem>
+                    <Divider Type="DirectionVHType.Vertical" />
+                    <Button Size="small" OnClick="ClearHistory">
+                        清空
+                    </Button>
+                    <Divider Type="DirectionVHType.Vertical" />
+                </SpaceItem>
+                @if(_localData != null)
+                {
+                    @foreach (var history in _localData?.SearchHistory)
+                    {
+                        <SpaceItem>
+                            <Tag Closable OnClose="(() => OnDeleteHistory(history.Key))">
+                                <a href="/@Pages.User.PAGE_ROUTE_USER/@history.Key">
+                                    @if (string.IsNullOrEmpty(history.Value))
+                                    {
+                                        @history.Key
+                                    }
+                                    else
+                                    {
+                                        @($"{history.Value} | {history.Key}")
+                                    }
+                                </a>
+                            </Tag>
+                        </SpaceItem>
+                    }
+                }
+            </Space>
+        </SpaceItem>
+        <SpaceItem>
+            <Space>
+                <SpaceItem>
+                    <Statistic Title="总收录" Value="@Info.SiteRuntimeInfo.TotalChannelsCount" />
+                </SpaceItem>
+                <SpaceItem>
+                    <Statistic Title="正在直播" Value="@Info.SiteRuntimeInfo.LivingCount" />
+                </SpaceItem>
+                <SpaceItem>
+                    <Statistic Title="总弹幕" Value="@(Info.SiteRuntimeInfo.TotalDanmakusCount.ToString("N0") + " 条")" />
+                </SpaceItem>
+                <SpaceItem>
+                    <Statistic Title="总片段" Value="@Info.SiteRuntimeInfo.TotalSegamentsCount" />
+                </SpaceItem>
+                <SpaceItem>
+                    <Statistic Title="弹幕速率" Value="@($"{Info.SiteRuntimeInfo.DanmakuSpeed} 条 /s")" />
+                </SpaceItem>
+                <SpaceItem>
+                    <Statistic Title="在线" Value="@Info.SiteRuntimeInfo.OnlineCount" />
+                </SpaceItem>
+                <SpaceItem>
+                    <Statistic Title="最近添加" Value="@("")">
+                        <PrefixTemplate>
+                            <a href="@Pages.Channel.PAGE_ROUTE_CHANNEL/@Info.SiteRuntimeInfo.LatestAddedChannel.UId">@Info.SiteRuntimeInfo.LatestAddedChannel.Name</a>
+                        </PrefixTemplate>
+                    </Statistic>
+                </SpaceItem>
+                <SpaceItem>
+                    <div>排序方式</div>
+                    <RadioGroup @bind-Value="@_displayType" TValue="ChannelRankType" OnChange="@GetChannelInfo">
+                        <Radio RadioButton Value="@ChannelRankType.LastLive">全部</Radio>
+                        <Radio RadioButton Value="@ChannelRankType.WatchCount">观看</Radio>
+                        <Radio RadioButton Value="@ChannelRankType.Interaction">互动</Radio>
+                        <Radio RadioButton Value="@ChannelRankType.AddDate">收录日期</Radio>
+                        @if (_localData?.FavoriteChannels.Count > 0)
+                        {
+                            <Radio RadioButton Value="@ChannelRankType.Favorite">收藏</Radio>
+                        }
+                    </RadioGroup>
+                </SpaceItem>
+                <SpaceItem>
+                    <div>分区</div>
+                    <Cascader Placeholder="所有" @bind-Value=@_selectedArea Options="@Utils.GetCascaderNodeFromEntity(_currentData.Areas)" SelectedNodesChanged="@GetChannelInfo"></Cascader>
+                </SpaceItem>
+                <SpaceItem>
+                    <div>搜索主播</div>
+                    <Input DebounceMilliseconds="600" AllowClear Placeholder="用户名或UID或直播间Id" @bind-Value=@_keyword TValue="string" OnChange="@GetChannelInfo" />
+                </SpaceItem>
+            </Space>
+        </SpaceItem>
+        <SpaceItem>
+            <Skeleton Loading=@_isLoading Active>
+                @if (_displayType is ChannelRankType.Interaction)
+                    {
+                    <div>时间范围</div>
+                    <RadioGroup @bind-Value="@_interactionType" TValue="ChannelInteractionType" OnChange="@GetChannelInfo">
+                        <Radio RadioButton Value="@ChannelInteractionType.TenMin">10分钟</Radio>
+                        <Radio RadioButton Value="@ChannelInteractionType.ThirtyMin">30分钟</Radio>
+                        <Radio RadioButton Value="@ChannelInteractionType.AHour">1小时</Radio>
+                        <Radio RadioButton Value="@ChannelInteractionType.All">全部</Radio>
+                    </RadioGroup>
+                    <Divider Type="DirectionVHType.Vertical" />
+                    <Button Type="@ButtonType.Primary" OnClick="@GetChannelInfo">
+                        刷新
+                    </Button>
+                    <Divider />
+                    }
+                    <Virtualize Items=@_currentData.Channels
+                        Context="item">
+                    <div style="display: flex;">
+                        <Space Style="max-width: 50%; justify-content:center;" Wrap>
+                            <SpaceItem>
+                                <a href="@Pages.Channel.PAGE_ROUTE_CHANNEL/@item.UId">
+                                    <Avatar Style="width: 70px;height: 70px" Src="@item.FaceUrl" />
+                                </a>
+                            </SpaceItem>
+                            <SpaceItem>
+                                <a href="@item.LiveRoomUrl" target="_blank">
+                                        @(item.Title ?? "未知")
+                                </a>
+                                    @if (item.IsLiving)
+                                    {
+                                        <a href="/@Pages.Live.PAGE_ROUTE_LIVE/@item.LivingInfo?.LiveId" target="_blank"><Tag Color="Green">直播中</Tag></a>
+                                    }
+                                <br />
+                                <font color="Gray">Uid: @item.UId</font>
+                            </SpaceItem>
+                        </Space>
+                        <Divider Type="@DirectionVHType.Vertical" Style="height: 100%" />
+                        <div style="margin-left: auto;">
+                            <Space Wrap Size="@("12")">
+                                <SpaceItem>
+                                    主播
+                                    <div class="liveinfo">
+                                        <a title="@($"收录于 {item.AddDate:F}")" href="@item.SpaceUrl" target="_blank">
+                                                @item.UName
+                                        </a>
+                                    </div>
+                                </SpaceItem>
+                                <SpaceItem>
+                                    上次开播
+                                        @if (item.IsLiving)
+                                        {
+                                        <div class="liveinfo"><a href="/@Pages.Live.PAGE_ROUTE_LIVE/@item.LivingInfo?.LiveId" target="_blank"><font color="green">正在直播</font></a></div>
+                                        }
+                                        else
+                                        {
+                                        <div class="liveinfo">@(item.LastLiveDate == DateTime.MinValue ? "无记录" : item.LastLiveDate)</div>
+                                        }
+                                </SpaceItem>
+                                    @if (item.IsLiving)
+                                    {
+                                        <SpaceItem>
+                                            观看 | 互动@(_interactionType switch
+                                                {
+                                                    ChannelInteractionType.TenMin => "[10分钟]",
+                                                    ChannelInteractionType.ThirtyMin => "[30分钟]",
+                                                    ChannelInteractionType.AHour => "[1小时]",
+                                                    _ => "",
+                                                })
+                                        <div class="liveinfo">
+                                            @item.LivingInfo?.WatchCount | @item.LivingInfo?.InteractionCount
+                                        </div>
+                                    </SpaceItem>
+                                    }
+                                <SpaceItem>
+                                        @if (!item.IsLiving)
+                                        {
+                                            @("总弹幕数")
+                                            <div class="liveinfo">@(item.TotalDanmakuCount.ToString("N0"))</div>
+                                        }
+                                </SpaceItem>
+                                <SpaceItem>
+                                    片段
+                                    <div class="liveinfo">@item.TotalLiveCount</div>
+                                </SpaceItem>
+                                <SpaceItem>
+                                        @if (item.IsLiving)
+                                        {
+                                            <Tag Color="Blue">当前</Tag>
+                                            @("弹幕数")
+                                            <div class="liveinfo">
+                                                @item.LivingInfo?.DanmakusCount
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @("最后一次直播弹幕数")
+                                            <div class="liveinfo">
+                                            @item.LastLiveDanmakuCount
+                                            </div>
+                                        }
+                                </SpaceItem>
+                                <SpaceItem>
+                                        @if (item.IsLiving)
+                                        {
+                                        <div><Tag Color="Blue">当前</Tag>时长</div>
+                                        <div class="liveinfo">@((DateTime.Now - item.LivingInfo?.StartDate)?.TotalHours.ToString("0.0")) 小时</div>
+                                        }
+                                        else
+                                        {
+                                            @("总时长")
+                                            <div class="liveinfo">@(new TimeSpan(0, 0, (int)item.TotalLiveSecond).TotalHours.ToString("0.0")) 小时</div>
+                                        }
+                                </SpaceItem>
+                                <SpaceItem>
+                                        @if (item.IsLiving)
+                                        {
+                                            <div><Tag Color="Blue">当前</Tag>收益</div>
+                                            <div class="liveinfo"><font color="Red">💰 @(item.LivingInfo?.TotalIncome.ToString("0.0"))</font></div>
+                                        }
+                                        else
+                                        {
+                                            @("总收益")
+                                            <div class="liveinfo"><font color="Red">💰 @(item.TotalIncome.ToString("0.0"))</font></div>
+                                        }
+                                </SpaceItem>
+                                <SpaceItem>
+                                    <Button OnClick="@(() => _navigationManager.NavigateTo($"{Pages.Channel.PAGE_ROUTE_CHANNEL}/{item.UId}"))">
+                                        <Icon Type="bars" Theme="outline" /> 直播记录
+                                    </Button>
+                                    <Tooltip Title="@(_localData.FavoriteChannels.Contains(item.UId) ? "已收藏" : "收藏")">
+                                        <Button Shape="@ButtonShape.Circle" Type="@ButtonType.Text" OnClick="@(() => OnFavorite(item))">
+                                            <Icon Type="star" Theme="@(_localData.FavoriteChannels.Contains(item.UId) ? "fill" : "outline")" Style="@($"color:{(_localData.FavoriteChannels.Contains(item.UId) ? "gold" : "gray")}")" />
+                                        </Button>
+                                    </Tooltip>
+                                </SpaceItem>
+                            </Space>
+                        </div>
+                    </div>
+                    <br />
+                    </Virtualize>
+            </Skeleton>
+        </SpaceItem>
+    </ChildContent>
+</Space>

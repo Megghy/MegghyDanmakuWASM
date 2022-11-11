@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8" />
+    <base href="/" />
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="manifest.json" rel="manifest" />
+
+    <link href="_content/AntDesign/css/ant-design-blazor.css" rel="stylesheet" />
+    <script src="_content/AntDesign/js/ant-design-blazor.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <section class='loader'>
+            <div class='loader-center'>
+                <div class='chars'>
+                    <span class='char brace'>{</span>
+                    <span class='dots'>
+                        <span class='char dot _dot-1'>.</span>
+                        <span class='char dot _dot-2'>.</span>
+                        <span class='char dot _dot-3'>.</span>
+                    </span>
+                    <span class='char brace'>}</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>navigator.serviceWorker.register('service-worker.js');</script>
+</body>
+
+</html>

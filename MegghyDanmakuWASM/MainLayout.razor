@@ -1,0 +1,95 @@
+﻿@inherits LayoutComponentBase
+
+@inject NavigationManager _navigationManager
+@inject IJSRuntime jsRuntime
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage
+
+<Layout Class="layout" Style="height: 100%">
+    <Header Style="background-color: #596157; height: 70px;">
+        <div style="display: flex; height: 100%; align-items: center;">
+            <a href="@_navigationManager.BaseUri" style="font-size: 20px">🥵</a>
+            <Divider Type="DirectionVHType.Vertical"/>
+            <Button Ghost OnClick="@(() => _navigationManager.NavigateTo("statistic"))">每日数据</Button>
+            &nbsp;
+            @if (Info.Config.EnableDataAnalyze)
+            {
+                <Button Ghost OnClick="@(() => _navigationManager.NavigateTo("analyze"))">分析</Button>
+            }
+            <div style="margin-left: auto;">
+                <Dropdown Placement="@Placement.Bottom" Trigger="@(new Trigger[] { Trigger.Click })">
+                    <Overlay>
+                        <Menu>
+                            <MenuItem Disabled=@(!Info.Config.EnableAddChannel)>
+                                @(Info.Config.EnableAddChannel ? "😀 添加主播" : "🙃 添加主播 (禁用)")
+                            </MenuItem>
+                            <MenuItem OnClick="@(async () => await jsRuntime.NavigateToNewTab(Info.Config.SiteAPIDocAddress))">
+                                🤖 API
+                            </MenuItem>
+                            <MenuItem OnClick="@(() => _navigationManager.NavigateTo("statistic"))">
+                                🤓 每日数据
+                            </MenuItem>
+                            @if (Info.Config.EnableDataAnalyze)
+                            {
+                                <MenuItem OnClick="@(() => _navigationManager.NavigateTo("analyze"))">
+                                    😦 数据分析
+                                </MenuItem>
+                            }
+                            <MenuItem OnClick="@(() => _navigationManager.NavigateTo("feedback"))">
+                                🤡 反馈
+                            </MenuItem>
+                            <MenuItem OnClick="@(() => _navigationManager.NavigateTo("about"))">
+                                😎 关于
+                            </MenuItem>
+                        </Menu>
+                    </Overlay>
+                    <ChildContent>
+                        <Button>
+                            更多
+                        </Button>
+                    </ChildContent>
+                </Dropdown>
+            </div>
+        </div>
+    </Header>
+    <Content Style="padding: 0 15px; overflow:auto">
+        @if (Info.Config.IsMaintenance == true)
+        {
+            <Alert>
+                维护中
+            </Alert>
+        }
+        else
+        {
+            <CascadingValue Value="@_localData">
+                <main>
+                    @Body
+                </main>
+            </CascadingValue>
+            
+        }
+    </Content>
+    <Footer Style="display: flex; justify-content:center;align-content:center; height: 70px;">
+    </Footer>
+</Layout>
+
+@code{
+
+    private LocalData _localData;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _localData = await _localStorage.GetItemAsync<LocalData>(LocalData.LOCAL_NAME);
+            if(_localData is null)
+            {
+                _localData = new();
+                await _localStorage.SetItemAsync(LocalData.LOCAL_NAME, _localData);
+            }
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+        await base.OnInitializedAsync();
+    }
+}
